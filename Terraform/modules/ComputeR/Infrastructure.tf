@@ -63,11 +63,7 @@ resource "aws_launch_template" "centos_ws_template" {
     }
   }
 }
-#   network_interfaces {
-#     associate_public_ip_address = true
-#     delete_on_termination       = true
-#   }
-# }
+
 
 ## This is only for demonstration purposes only!
 ## Implement differently for a production environment. 

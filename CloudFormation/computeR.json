@@ -1,0 +1,177 @@
+{
+"AWSTemplateFormatVersion": "2010-09-09",
+    "Description": "Resources that provide compute p0ower for applications, This will house the majority of the web server resources, including load balancing",
+    "Parameters": {
+        "environment": {
+            "Description": "Tag to include within instances",
+            "Default": "dev",
+            "Type": "String"
+        },
+        "customAMI": {
+            "Default": "ami-0ff760d16d9497662",
+            "Description": "Centos 7 AMI retrieved from the marketplace",
+            "Type": "String"
+        },
+        "webServerInstanceType": {
+            "AllowedValues": [
+                "t2.micro"
+            ],
+            "Default": "t2.micro",
+            "Description": "Amazon EC2 instance type for the webserver instances",
+            "Type": "String"
+        },
+        "KeyPairName": {
+            "Description": "The name of an existing public/private key pair, which allows you to securely connect to your instance after it launches",
+            "Type": "AWS::EC2::KeyPair::KeyName",
+            "Default": "cloud-formation-kp"
+        },
+        "webMainSecID": {
+            "Description": "SecurityGroupIDs, should be populated from the SecurityR Stack",
+            "Type": "List<AWS::EC2::SecurityGroup::Id>"
+        },
+        "SubnetIDs": {
+            "Description": "SecurityGroupIDs, should be populated from the SecurityR Stack",
+            "Type": "List<AWS::EC2::Subnet::Id>"
+        },
+        "serverMaxCount": {
+            "Default": "3",
+            "Description": "The maximum size of the Auto Scaling group",
+            "Type": "Number"
+        },
+        "serverMinCount": {
+            "Default": "3",
+            "Description": "The minimum size of the Auto Scaling group",
+            "Type": "Number"
+        },
+        "VPCID": {
+            "Description": "VPCID, automatically populated from the networking stack",
+            "Type": "AWS::EC2::VPC::Id"
+        }
+    },
+    "Resources": {
+        "CentosWsTemplate" : {
+            "Type" : "AWS::EC2::LaunchTemplate",
+            "Properties" : {
+              "LaunchTemplateName" : "WebServerTemplate",
+              "LaunchTemplateData" : {
+                  "InstanceInitiatedShutdownBehavior" : "terminate",
+                  "SecurityGroupIds" : { "Ref" : "webMainSecID" },
+                  "EbsOptimized" : "false",
+                  "KeyName" : { "Ref" : "KeyPairName" },
+                  "DisableApiTermination" : "true",
+                  "ImageId" : { "Ref" : "customAMI" },
+                  "InstanceType" : { "Ref" : "webServerInstanceType" },
+                  "BlockDeviceMappings" : [{
+                    "DeviceName" : "/dev/sda1",
+                    "Ebs" : {
+                      "VolumeType" : "gp2",
+                      "VolumeSize" : 8,
+                      "DeleteOnTermination" : true
+                    }
+                  }],
+                  "TagSpecifications": [{
+                      "ResourceType" : "volume",
+                      "Tags" : [
+                        {
+                           "Key" : "Name",
+                           "Value" : "WebServer-Volumes"
+                        },
+                        {
+                           "Key" : "Owner",
+                           "Value" : "Yordan Ibishev"
+                        },
+                        {
+                            "Key": "Environment",
+                            "Value": {
+                                "Ref": "environment"
+                            }
+                        }
+                     ]
+                    }]
+                }
+            }
+        },
+        "WebServers" : {
+            "Type" : "AWS::AutoScaling::AutoScalingGroup",
+            "Properties" : {
+                "AutoScalingGroupName" : "WebServers",
+                "VPCZoneIdentifier": { "Ref" : "SubnetIDs" },
+                "MinSize" : {"Ref": "serverMinCount" },
+                "MaxSize" : {"Ref": "serverMaxCount" },
+                "TargetGroupARNs" : [  { "Ref" : "tgWebServerHTTP" }, { "Ref" : "tgWebServerHTTPS" } ],
+                "LaunchTemplate" : {
+                    "LaunchTemplateId" : { "Ref" : "CentosWsTemplate" },
+                    "Version" : { "Fn::GetAtt": ["CentosWsTemplate", "LatestVersionNumber"]  }
+                },
+                "Tags" : [
+                    {
+                        "Key" : "Name",
+                        "Value" : "WebServerAutoScaling",
+                        "PropagateAtLaunch" : true
+                    },
+                    {
+                        "Key" : "Env",
+                        "Value" : { "Ref": "environment"},
+                        "PropagateAtLaunch" : true
+                    },
+                    {
+                        "Key" : "Owner",
+                        "Value" : "Yordan Ibishev",
+                        "PropagateAtLaunch" : false
+                    }
+                ]
+            }
+        },
+        "appLoadBalancer": {
+            "Type" : "AWS::ElasticLoadBalancingV2::LoadBalancer",
+            "Properties" : {    
+                "Name" : "AppLB-WebServer",
+                "Type" : "application",
+                "IpAddressType" : "ipv4",
+                "Scheme" : "internal",
+                "Subnets" : { "Ref" : "SubnetIDs" },
+                "Tags" : [
+                    {
+                       "Key" : "Name",
+                       "Value" : "AppLB-WebServer"
+                    },
+                    {
+                       "Key" : "Owner",
+                       "Value" : "Yordan Ibishev"
+                    }
+                ]
+            }
+        },
+        "tgWebServerHTTP": {
+            "Type" : "AWS::ElasticLoadBalancingV2::TargetGroup",
+            "Properties" : {
+              "Name" : "targetAutoscalingWebServersHTTP",
+              "Port" : 80,
+              "Protocol" : "HTTP",
+              "VpcId" : {"Ref" : "VPCID"}
+            }
+        },
+        "tgWebServerHTTPS": {
+            "Type" : "AWS::ElasticLoadBalancingV2::TargetGroup",
+            "Properties" : {
+              "Name" : "targetAutoscalingWebServersHTTPS",
+              "Port" : 443,
+              "Protocol" : "HTTPS",
+              "VpcId" : {"Ref" : "VPCID"}
+            }
+        },
+        "frontEnd": {
+            "Type" : "AWS::ElasticLoadBalancingV2::Listener",
+            "Properties" : {
+                "DefaultActions" : [{
+                    "TargetGroupArn" : { "Ref": "tgWebServerHTTP"},
+                    "Type" : "forward"
+                    } 
+                ],
+                "LoadBalancerArn" : { "Ref": "appLoadBalancer"},
+                "Port" : 80,
+                "Protocol" : "HTTP"
+            }
+          }
+    }
+}

@@ -1,0 +1,109 @@
+{
+"AWSTemplateFormatVersion": "2010-09-09",
+    "Description": "Security Resources, like securitygroups",
+    "Parameters": {
+        "environment": {
+            "Description": "Tag to include within instances",
+            "Default": "dev",
+            "Type": "String"
+        },
+        "VPCID": {
+            "Description": "VPCID, automatically populated from the networking stack",
+            "Type": "AWS::EC2::VPC::Id"
+        }
+    },
+    "Resources": {
+        "webMainSec" : {
+            "Type" : "AWS::EC2::SecurityGroup",
+            "Properties" : {
+               "GroupDescription" : "Allows SSH, ICMP, HTTPS, MYSQL Related Traffic to the instances attached with this sec group.",
+               "VpcId" : {"Ref" : "VPCID"},
+               "SecurityGroupIngress" : [
+                   {
+                       "IpProtocol" : "tcp",
+                       "FromPort" : 22,
+                       "ToPort" : 22,
+                       "CidrIp" : "0.0.0.0/0"
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort" : 443,
+                        "ToPort" : 443,
+                        "CidrIp" : "0.0.0.0/0"
+                    },
+                    {
+                        "IpProtocol" : "tcp",
+                        "FromPort" : 3306,
+                        "ToPort" : 3306,
+                        "CidrIp" : "0.0.0.0/0"
+                    },
+                    {
+                        "IpProtocol" : "icmp",
+                        "FromPort" : 8,
+                        "ToPort" : 0,
+                        "CidrIp" : "0.0.0.0/0"
+                    },
+                    {
+                        "IpProtocol" : "icmp",
+                        "FromPort" : 0,
+                        "ToPort" : 0,
+                        "CidrIp" : "0.0.0.0/0"
+                    },
+                    {
+                        "IpProtocol" : "icmp",
+                        "FromPort" : 3,
+                        "ToPort" : -1,
+                        "CidrIp" : "0.0.0.0/0"
+                    },
+                    {
+                        "IpProtocol" : "icmp",
+                        "FromPort" : 11,
+                        "ToPort" : -1,
+                        "CidrIp" : "0.0.0.0/0"
+                    }
+                ],
+                "SecurityGroupEgress" : [
+                    {
+                        "IpProtocol" : "-1",
+                        "FromPort" : 0,
+                        "ToPort" : 0,
+                        "CidrIp" : "0.0.0.0/0"
+                    }
+                ],
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": "Permitted Web Traffic"
+                    },
+                    {
+                        "Key": "Owner",
+                        "Value": "Yordan Ibishev"
+                    },
+                    {
+                        "Key": "Environment",
+                        "Value": {
+                            "Ref": "environment"
+                        }
+                    }
+                ]
+
+            }
+         }     
+    },
+    "Outputs": {
+        "webMainSecID": {
+            "Description": "security group ",
+            "Value": {
+                "Ref" : "webMainSec" 
+            },
+            "Export": {
+                "Name": {
+                    "Fn::Sub": "${AWS::StackName}-webMainSecID"
+                }
+            }
+        }
+    }
+}
+
+
+

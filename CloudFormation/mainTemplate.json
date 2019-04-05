@@ -1,0 +1,167 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+        "Description": "TestingTemplate",
+        "Metadata": {
+            "AWS::CloudFormation::Interface" : {
+                "ParameterGroups" : [
+                {
+                    "Label" : { "default" : "Network Configuration" },
+                    "Parameters" : [ "CIDRRange", "azList" ]
+                },
+                {
+                    "Label" : { "default":"Compute/Infrastructure Configuration" },
+                    "Parameters" : [ "web_server_instance_type", "KeyPairName" ]
+                }
+                ],
+                "ParameterLabels" : {
+                "azList": { "default": "Which Availability Zones should be used? specify and seperate using commas."},
+                "CIDRRange": { "default": "Specify all CIDR ranges in a list format. Must have an ip address and subnet mask in once section. Example: '192.168.1.2/24'."},
+                "web_server_instance_type": { "default": "Provide a valid instance type for your web servers."},
+                "KeyPairName": { "default": "Choose the name of an existing key-pair"}
+                }
+            }
+        },
+        "Parameters": {
+            "azList": {
+                "Default": "eu-west-1a, eu-west-1b, eu-west-1c",
+                "Description": "AZ to use in the eu-west region (Ireland)",
+                "Type": "String"
+            },
+            "customAMI": {
+                "Default": "ami-0ff760d16d9497662",
+                "Description": "Centos 7 AMI retrieved from the marketplace",
+                "Type": "String"
+            },
+            "webServerInstanceType": {
+                "AllowedValues": [
+                    "t2.micro"
+                ],
+                "Default": "t2.micro",
+                "Description": "Amazon EC2 instance type for the webserver instances",
+                "Type": "String"
+            },
+            "KeyPairName": {
+                "Description": "The name of an existing public/private key pair, which allows you to securely connect to your instance after it launches",
+                "Type": "AWS::EC2::KeyPair::KeyName",
+                "Default": "cloud-formation-kp"
+            },
+            "CIDRRange": {
+                "Default": "172.168.0.0/24, 172.168.1.0/24, 172.168.2.0/24",
+                "Type": "String",
+                "Description": "Ranges to use for each individual subnet"
+            },
+            "VPCCIDR": {
+                "AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/(1[6-9]|2[0-8]))$",
+                "ConstraintDescription": "CIDR block parameter must be in the form x.x.x.x/16-28",
+                "Default": "172.168.0.0/16",
+                "Description": "CIDR block for the VPC",
+                "Type": "String"
+            },
+            "environment": {
+                "Description": "Tag to include within instances",
+                "Default": "dev",
+                "Type": "String"
+            },
+            "serverMaxCount": {
+                "Default": "3",
+                "Description": "The maximum size of the Auto Scaling group",
+                "Type": "Number"
+            },
+            "serverMinCount": {
+                "Default": "3",
+                "Description": "The minimum size of the Auto Scaling group",
+                "Type": "Number"
+            }
+        },
+        "Resources": {
+            "NetworkingRStack": {
+                "Type": "AWS::CloudFormation::Stack",
+                "Properties": {
+                    "TemplateURL": {
+                        "Fn::Sub": "https://s3-eu-west-1.amazonaws.com/2018projectcloudformation/templates/networkingR.json"
+                    },
+                    "Parameters": {
+                        "azList": {
+                            "Ref": "azList"
+                        },
+                        "CIDRRange": {
+                            "Ref": "CIDRRange"
+                        },
+                        "VPCCIDR": {
+                            "Ref": "VPCCIDR"
+                        },
+                        "environment": {
+                            "Ref": "environment"
+                        }
+    
+                    }
+                }
+            },
+            "ComputeRStack":{
+                "DependsOn": ["NetworkingRStack", "SecurityRStack"],
+                "Type": "AWS::CloudFormation::Stack",
+                "Properties": {
+                    "TemplateURL": {
+                        "Fn::Sub": "https://s3-eu-west-1.amazonaws.com/2018projectcloudformation/templates/computeR.json"
+                    },
+                    "Parameters": {
+                        "environment": {
+                            "Ref": "environment"
+                        },
+                        "webServerInstanceType": {
+                            "Ref": "webServerInstanceType"
+                        },
+                        "customAMI": {
+                            "Ref": "customAMI"
+                        },
+                        "KeyPairName": {
+                            "Ref": "KeyPairName"
+                        },
+                        "serverMaxCount": {
+                            "Ref": "serverMaxCount"
+                        },
+                        "serverMinCount": {
+                            "Ref": "serverMinCount"
+                        },
+                        "webMainSecID": {
+                            "Fn::GetAtt": [
+                                "SecurityRStack",
+                                "Outputs.webMainSecID"
+                            ]
+                        },
+                        "SubnetIDs": {
+                            "Fn::GetAtt": [
+                                "NetworkingRStack",
+                                "Outputs.SubnetIDs"
+                            ]
+                        },
+                        "VPCID": {
+                            "Fn::GetAtt": [
+                                "NetworkingRStack",
+                                "Outputs.VPCID"
+                            ]
+                        }
+                    }
+                }
+            },
+            "SecurityRStack": {
+                "DependsOn": "NetworkingRStack",
+                "Type": "AWS::CloudFormation::Stack",
+                "Properties": {
+                    "TemplateURL": {
+                        "Fn::Sub": "https://s3-eu-west-1.amazonaws.com/2018projectcloudformation/templates/securityR.json"
+                    },
+                    "Parameters": {
+                        "VPCID": {
+                            "Fn::GetAtt": [
+                                "NetworkingRStack",
+                                "Outputs.VPCID"
+                            ]
+                        }
+                    }
+                }
+            }
+        }
+}
+
+    
