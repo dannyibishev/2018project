@@ -1,5 +1,5 @@
 # AutomationTooling2018-19Project
-Housing Terraform, Chef, and Puppet Configurations. This project serves as an investigation for a final year Bsc Dissertation. Any code and tool usability will be discussed in detail on the physical report. 
+Housing Terraform and CloudFormation configuration + more to come. This project serves as an investigation for a final year Bsc Dissertation. Any code and tool usability will be discussed in detail on the physical report. 
 
 ## Sample Topology
 The following topology will be used for the infrastructure orchestration:
@@ -65,3 +65,4 @@ Ahead of time, ensure you have an IAM user set up with programmatic access (acce
 
     c.)
 
+^^^^ to be Written up Soon ^^^^
