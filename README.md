@@ -1,4 +1,4 @@
-https://zenodo.org/badge/154329157.svg
+[![DOI](https://zenodo.org/badge/154329157.svg)](https://zenodo.org/badge/latestdoi/154329157)
 
 # AutomationTooling2018-19Project
 Housing Terraform and CloudFormation configuration + more to come. This project serves as an investigation for a final year Bsc Dissertation. Any code and tool usability will be discussed in detail on the physical report. 
